@@ -35,6 +35,8 @@ module.exports = function(router, database) {
   exports.login = login;
 
   router.post('/login', (req, res) => {
+    console.log("AJEAGE", req.body);
+    // res.send(req);  //Not returning anything!?
     const {email, password} = req.body;
     login(email, password)
       .then(user => {
