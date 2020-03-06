@@ -30,7 +30,6 @@ const getUserWithEmail = function(email) {
   WHERE email = $1
   `, [email])
   .then(res => {
-    console.log("Tseting", res.rows[0]);
     return res.rows[0]});
 }
 exports.getUserWithEmail = getUserWithEmail;
@@ -108,45 +107,35 @@ const getAllProperties = function(options, limit = 10) {
     }
     
     if (options.owner_id) {
-      if (options.length >1) {
+      if (Object.keys(options).length >1) {
         queryParams.push(`%${options.owner_id}%`);
         queryString += `AND owner_id = $${queryParams.length} `;
       } else {
-        queryParams.push(`%${options.owner_id}%`);
+        queryParams.push(options.owner_id);
         queryString += `WHERE owner_id = $${queryParams.length} `;
       }
     }
 
-    if (options.minimum_price_per_night) {
-      if (options.length >1) {
-        queryParams.push(`%${options.minimum_price_per_night}%`);
-        queryString += `AND minimum_price_per_night > $${queryParams.length} `;
+    if (options.minimum_price_per_night && options.maximum_price_per_night) {
+      queryParams.push(Number(options.minimum_price_per_night) * 100);
+      queryParams.push(Number(options.maximum_price_per_night) * 100);
+      if (queryParams.length > 2) {
+        queryString += `AND properties.cost_per_night BETWEEN $${queryParams.length -
+          1} AND $${queryParams.length}`;
       } else {
-        
-        queryParams.push(`%${options.minimum_price_per_night}%`);
-        queryString += `WHERE minimum_price_per_night > $${queryParams.length} `;
-      }
-    }
-
-    if (options.maximum_price_per_night) {
-      if (options.length >1) {
-        queryParams.push(`%${options.minimum_price_per_night}%`);
-        queryString += `AND maximum_price_per_night < $${queryParams.length} `;
-      } else {
-        
-        queryParams.push(`%${options.minimum_price_per_night}%`);
-        queryString += `WHERE maximum_price_per_night < $${queryParams.length} `;
+        queryString += `WHERE properties.cost_per_night BETWEEN $${queryParams.length -
+          1} AND $${queryParams.length}`;
       }
     }
 
     if (options.minimum_rating) {
-      if (options.length >1) {
-        queryParams.push(`%${options.minimum_rating}%`);
-        queryString += `AND minimum_rating < $${queryParams.length} `;
+      if (Object.keys(options).length >1) {
+        queryParams.push(Number(options.minimum_rating));
+        queryString += `AND rating > $${queryParams.length} `;
       } else {
         
-        queryParams.push(`%${options.minimum_rating}%`);
-        queryString += `WHERE minimum_rating < $${queryParams.length} `;
+        queryParams.push(Number(options.minimum_rating));
+        queryString += `WHERE rating > $${queryParams.length} `;
       }
     }
 
@@ -159,7 +148,7 @@ const getAllProperties = function(options, limit = 10) {
     `;
   
     // 5
-    console.log(queryString, queryParams);
+    // console.log(queryString, queryParams);
   
     // 6
     return pool.query(queryString, queryParams)
@@ -175,10 +164,26 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function(property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  return pool.query(`
+  INSERT INTO properties(
+    owner_id, title, description, thumbnail_photo_url, cover_photo_url, cost_per_night, street, city, province, post_code, country, parking_spaces, number_of_bathrooms, number_of_bedrooms) 
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+  RETURNING *;
+  `, [property.owner_id,
+    property.title,
+    property.description,
+    property.thumbnail_photo_url,
+    property.cover_photo_url,
+    parseInt(property.cost_per_night),
+    property.street,
+    property.city,
+    property.province,
+    property.post_code,
+    property.country,
+    parseInt(property.parking_spaces),
+    parseInt(property.number_of_bathrooms),
+    parseInt(property.number_of_bedrooms)])
+  .then(res => res.rows[0]);
 }
 exports.addProperty = addProperty;
 
